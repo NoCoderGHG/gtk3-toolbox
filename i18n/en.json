@@ -22,5 +22,13 @@
   "badge_external": "External",
   "badge_not_available": "Planned",
   "manifest_error": "Could not load tools.json.",
-  "restart_hint": "Please restart."
+  "restart_hint": "Please restart.",
+  "btn_check_updates": "Check for updates",
+  "chk_auto_update": "Auto update check",
+  "update_dialog_title": "Updates available",
+  "update_dialog_text": "Updates are available for the following tools:",
+  "update_now": "Update",
+  "update_later": "Later",
+  "status_checking_updates": "Checking for updates...",
+  "status_no_updates": "No updates available."
 }

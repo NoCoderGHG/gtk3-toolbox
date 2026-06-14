@@ -22,5 +22,13 @@
   "badge_external": "Extern",
   "badge_not_available": "Geplant",
   "manifest_error": "tools.json konnte nicht geladen werden.",
-  "restart_hint": "Bitte neu starten."
+  "restart_hint": "Bitte neu starten.",
+  "btn_check_updates": "Updates prüfen",
+  "chk_auto_update": "Auto-Update-Check",
+  "update_dialog_title": "Updates verfügbar",
+  "update_dialog_text": "Für folgende Tools sind Updates verfügbar:",
+  "update_now": "Aktualisieren",
+  "update_later": "Später",
+  "status_checking_updates": "Suche nach Updates...",
+  "status_no_updates": "Keine Updates verfügbar."
 }

@@ -41,7 +41,9 @@ SUPPORTED_LANGUAGES = {
 
 MANIFEST_FILE = APP_DIR / "tools.json"
 
-DEFAULT_CONFIG = {"lang": "system", "dark_theme": False}
+DEFAULT_CONFIG = {"lang": "system", "dark_theme": False, "auto_update_check": False}
+
+VERSION_FILE_NAME = ".gtk3-toolbox-commit"
 
 
 def load_config():
@@ -150,6 +152,63 @@ def is_installed(tool):
     return entry.exists()
 
 
+def repo_owner_name(repo_url):
+    """https://github.com/OWNER/NAME -> (OWNER, NAME)"""
+    parts = repo_url.rstrip("/").split("/")
+    return parts[-2], parts[-1]
+
+
+def fetch_latest_commit_sha(repo_url, branch):
+    owner, name = repo_owner_name(repo_url)
+    url = f"https://api.github.com/repos/{owner}/{name}/commits/{branch}"
+    req = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json"})
+    with urllib.request.urlopen(req, timeout=10) as resp:
+        data = json.load(resp)
+    return data.get("sha")
+
+
+def get_installed_commit(tool_id):
+    f = tool_install_dir(tool_id) / VERSION_FILE_NAME
+    if f.exists():
+        try:
+            return f.read_text().strip()
+        except Exception:
+            return None
+    return None
+
+
+def set_installed_commit(tool_id, sha):
+    f = tool_install_dir(tool_id) / VERSION_FILE_NAME
+    try:
+        f.write_text(sha)
+    except Exception:
+        pass
+
+
+def check_updates(manifest, callback):
+    """Vergleicht installierte Tools mit dem aktuellen Commit auf GitHub.
+    callback(results) wird im Main-Thread aufgerufen, results = Liste von
+    (tool, installed_sha, latest_sha)."""
+    results = []
+    all_tools = list(manifest.get("tools", [])) + list(manifest.get("external", []))
+    for tool in all_tools:
+        repo = tool.get("repo")
+        if not repo or not is_installed(tool):
+            continue
+        installed = get_installed_commit(tool["id"])
+        if not installed:
+            # Kein gespeicherter Commit (z.B. Installation vor Einfuehrung
+            # des Update-Checkers) -> nicht vergleichbar, ueberspringen.
+            continue
+        try:
+            latest = fetch_latest_commit_sha(repo, tool.get("branch", "main"))
+        except Exception:
+            continue
+        if latest and latest != installed:
+            results.append((tool, installed, latest))
+    GLib.idle_add(callback, results)
+
+
 def download_and_install(tool, callback):
     tool_id = tool["id"]
     repo = tool["repo"].rstrip("/")
@@ -179,6 +238,15 @@ def download_and_install(tool, callback):
                 shutil.move(str(extract_tmp), str(dest))
 
         tmp_zip.unlink(missing_ok=True)
+
+        # Aktuellen Commit-Hash merken, fuer spaetere Update-Checks.
+        try:
+            sha = fetch_latest_commit_sha(repo, branch)
+            if sha:
+                set_installed_commit(tool_id, sha)
+        except Exception:
+            pass
+
         GLib.idle_add(callback, tool, True, "")
     except Exception as e:
         tmp_zip.unlink(missing_ok=True)
@@ -266,6 +334,41 @@ class ToolRow(Gtk.ListBoxRow):
         self.btn_box.show_all()
 
 
+class UpdateDialog(Gtk.Dialog):
+    """Zeigt Tools mit verfuegbaren Updates (alter -> neuer Commit) zur Auswahl."""
+
+    def __init__(self, parent, strings, results):
+        super().__init__(title=t(strings, "update_dialog_title"), transient_for=parent, flags=0)
+        self.add_buttons(
+            t(strings, "update_later"), Gtk.ResponseType.CANCEL,
+            t(strings, "update_now"), Gtk.ResponseType.OK,
+        )
+        self.set_default_size(420, -1)
+
+        box = self.get_content_area()
+        box.set_spacing(8)
+        box.set_border_width(12)
+
+        lbl = Gtk.Label(label=t(strings, "update_dialog_text"))
+        lbl.set_xalign(0)
+        lbl.set_line_wrap(True)
+        box.pack_start(lbl, False, False, 0)
+
+        self._checks = []
+        for tool, old_sha, new_sha in results:
+            cb = Gtk.CheckButton(
+                label=f"{tool['name']}  ({old_sha[:7]} \u2192 {new_sha[:7]})"
+            )
+            cb.set_active(True)
+            box.pack_start(cb, False, False, 0)
+            self._checks.append((cb, tool))
+
+        box.show_all()
+
+    def selected_tools(self):
+        return [tool for cb, tool in self._checks if cb.get_active()]
+
+
 class ToolboxLauncher(Gtk.Window):
     def __init__(self):
         super().__init__(title="GTK3 Toolbox")
@@ -274,11 +377,15 @@ class ToolboxLauncher(Gtk.Window):
         self.cfg = load_config()
         self.strings = load_i18n(resolve_lang(self.cfg.get("lang", "system")))
         self.manifest = load_manifest()
+        self.rows = {}
 
         settings = Gtk.Settings.get_default()
         settings.set_property("gtk-application-prefer-dark-theme", self.cfg.get("dark_theme", False))
 
         self._build_ui()
+
+        if self.cfg.get("auto_update_check", False):
+            self._run_update_check(manual=False)
 
     def _build_ui(self):
         header = Gtk.HeaderBar()
@@ -292,6 +399,18 @@ class ToolboxLauncher(Gtk.Window):
         btn_theme.set_tooltip_text(t(self.strings, "btn_theme"))
         btn_theme.connect("clicked", self._on_theme_toggle)
         header.pack_end(btn_theme)
+
+        btn_check_updates = Gtk.Button()
+        icon_update = Gio.ThemedIcon(name="view-refresh-symbolic")
+        btn_check_updates.add(Gtk.Image.new_from_gicon(icon_update, Gtk.IconSize.BUTTON))
+        btn_check_updates.set_tooltip_text(t(self.strings, "btn_check_updates"))
+        btn_check_updates.connect("clicked", lambda b: self._run_update_check(manual=True))
+        header.pack_end(btn_check_updates)
+
+        chk_auto_update = Gtk.CheckButton(label=t(self.strings, "chk_auto_update"))
+        chk_auto_update.set_active(self.cfg.get("auto_update_check", False))
+        chk_auto_update.connect("toggled", self._on_auto_update_toggled)
+        header.pack_end(chk_auto_update)
 
         lang_combo = Gtk.ComboBoxText()
         for code, label in build_lang_options(self.strings):
@@ -326,7 +445,9 @@ class ToolboxLauncher(Gtk.Window):
             listbox = Gtk.ListBox()
             listbox.set_selection_mode(Gtk.SelectionMode.NONE)
             for tool in self.manifest.get("tools", []):
-                listbox.add(ToolRow(tool, self.strings, lang, self._on_tool_action))
+                row = ToolRow(tool, self.strings, lang, self._on_tool_action)
+                self.rows[tool["id"]] = row
+                listbox.add(row)
             content.pack_start(listbox, False, False, 0)
 
             ext = self.manifest.get("external", [])
@@ -339,7 +460,9 @@ class ToolboxLauncher(Gtk.Window):
                 listbox_ext = Gtk.ListBox()
                 listbox_ext.set_selection_mode(Gtk.SelectionMode.NONE)
                 for tool in ext:
-                    listbox_ext.add(ToolRow(tool, self.strings, lang, self._on_tool_action, external=True))
+                    row = ToolRow(tool, self.strings, lang, self._on_tool_action, external=True)
+                    self.rows[tool["id"]] = row
+                    listbox_ext.add(row)
                 content.pack_start(listbox_ext, False, False, 0)
 
         self.statusbar = Gtk.Statusbar()
@@ -394,6 +517,44 @@ class ToolboxLauncher(Gtk.Window):
         save_config(self.cfg)
         settings = Gtk.Settings.get_default()
         settings.set_property("gtk-application-prefer-dark-theme", self.cfg["dark_theme"])
+
+    def _on_auto_update_toggled(self, btn):
+        self.cfg["auto_update_check"] = btn.get_active()
+        save_config(self.cfg)
+
+    def _run_update_check(self, manual=False):
+        if self.manifest is None:
+            return
+        if manual:
+            self._status(t(self.strings, "status_checking_updates"))
+        thread = threading.Thread(
+            target=check_updates,
+            args=(self.manifest, lambda results: self._on_update_check_done(results, manual)),
+            daemon=True,
+        )
+        thread.start()
+
+    def _on_update_check_done(self, results, manual):
+        if not results:
+            if manual:
+                self._status(t(self.strings, "status_no_updates"))
+            return
+
+        dlg = UpdateDialog(self, self.strings, results)
+        response = dlg.run()
+        selected = dlg.selected_tools() if response == Gtk.ResponseType.OK else []
+        dlg.destroy()
+
+        for tool in selected:
+            row = self.rows.get(tool["id"])
+            if row:
+                row.set_sensitive(False)
+            self._status(t(self.strings, "status_installing", name=tool["name"]))
+            threading.Thread(
+                target=download_and_install,
+                args=(tool, lambda tl, ok, err, r=row: self._on_install_done(r, ok, err) if r else None),
+                daemon=True,
+            ).start()
 
     def _on_lang_changed(self, combo):
         new_lang = combo.get_active_id()
