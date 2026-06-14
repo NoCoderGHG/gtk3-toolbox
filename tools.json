@@ -1,0 +1,182 @@
+{
+  "tools": [
+    {
+      "id": "multi-git-publisher",
+      "name": "Multi-Git-Publisher",
+      "description_de": "Parallel-Push zu GitHub, GitLab und Codeberg",
+      "description_en": "Parallel push to GitHub, GitLab and Codeberg",
+      "repo": "https://github.com/NoCoderGHG/multi-git-publisher",
+      "branch": "main",
+      "entry": "multi_git_publisher.py",
+      "icon": "git",
+      "available": true
+    },
+    {
+      "id": "rsync-gui",
+      "name": "Rsync GUI",
+      "description_de": "Grafische Oberfläche für rsync-Backups",
+      "description_en": "Graphical frontend for rsync backups",
+      "repo": "https://github.com/NoCoderGHG/rsync-gui",
+      "branch": "main",
+      "entry": "rsync_gui.py",
+      "icon": "sync",
+      "available": true
+    },
+    {
+      "id": "ramdisk-manager",
+      "name": "Ramdisk Manager",
+      "description_de": "Ramdisks anlegen und verwalten",
+      "description_en": "Create and manage ramdisks",
+      "repo": "https://github.com/NoCoderGHG/ramdisk-manager",
+      "branch": "main",
+      "entry": "ramdisk_manager.py",
+      "icon": "memory",
+      "available": true
+    },
+    {
+      "id": "swap-manager",
+      "name": "Swap Manager",
+      "description_de": "Swap-Dateien und Swappiness verwalten",
+      "description_en": "Manage swap files and swappiness",
+      "repo": "https://github.com/NoCoderGHG/swap-manager",
+      "branch": "main",
+      "entry": "swap_manager.py",
+      "icon": "disk",
+      "available": true
+    },
+    {
+      "id": "flatpak-manager",
+      "name": "Flatpak Manager",
+      "description_de": "Flatpaks installieren, entfernen, aktualisieren",
+      "description_en": "Install, remove, update flatpaks",
+      "repo": "https://github.com/NoCoderGHG/flatpak-manager",
+      "branch": "main",
+      "entry": "flatpak_manager.py",
+      "icon": "package",
+      "available": true
+    },
+    {
+      "id": "alias-manager",
+      "name": "Shell Alias Manager",
+      "description_de": "Shell-Aliase grafisch verwalten",
+      "description_en": "Manage shell aliases graphically",
+      "repo": "https://github.com/NoCoderGHG/shell-alias-manager",
+      "branch": "main",
+      "entry": "shell-alias-manager.py",
+      "icon": "terminal",
+      "available": true
+    },
+    {
+      "id": "howdy-tool",
+      "name": "Howdy Manager",
+      "description_de": "Howdy-Gesichtserkennung konfigurieren",
+      "description_en": "Configure Howdy face recognition",
+      "repo": "https://github.com/NoCoderGHG/howdy-gui",
+      "branch": "main",
+      "entry": "howdy_gui.py",
+      "icon": "face",
+      "available": true
+    },
+    {
+      "id": "venv-manager",
+      "name": "Venv Manager",
+      "description_de": "Python-Virtualenvs verwalten",
+      "description_en": "Manage Python virtualenvs",
+      "repo": "https://github.com/NoCoderGHG/venv-manager",
+      "branch": "main",
+      "entry": "venv_manager.py",
+      "icon": "python",
+      "available": false
+    },
+    {
+      "id": "cronjob-manager",
+      "name": "Cron-Job-Manager",
+      "description_de": "Cronjobs grafisch verwalten",
+      "description_en": "Manage cron jobs graphically",
+      "repo": "https://github.com/NoCoderGHG/cronjob-manager",
+      "branch": "main",
+      "entry": "cronjob_manager.py",
+      "icon": "clock",
+      "available": true
+    },
+    {
+      "id": "netzlaufwerk-manager",
+      "name": "Netzlaufwerk-Manager",
+      "description_de": "SAMBA/NFS-Netzlaufwerke ohne fstab-Editierung",
+      "description_en": "SAMBA/NFS network drives without fstab editing",
+      "repo": "https://github.com/NoCoderGHG/netzlaufwerk-manager",
+      "branch": "main",
+      "entry": "netzlaufwerk_manager.py",
+      "icon": "network",
+      "available": false
+    },
+    {
+      "id": "bash-referenz",
+      "name": "Bash-Referenz-Tool",
+      "description_de": "Nachschlagewerk für Bash-Befehle",
+      "description_en": "Reference tool for bash commands",
+      "repo": "https://github.com/NoCoderGHG/bash-referenz-tool",
+      "branch": "main",
+      "entry": "bash_referenz.py",
+      "icon": "book",
+      "available": false
+    },
+    {
+      "id": "systemd-service-manager",
+      "name": "Systemd-Service-Manager",
+      "description_de": "Systemd-Services verwalten",
+      "description_en": "Manage systemd services",
+      "repo": "https://github.com/NoCoderGHG/systemd-service-manager",
+      "branch": "main",
+      "entry": "systemd_service_manager.py",
+      "icon": "settings",
+      "available": true
+    },
+    {
+      "id": "unicode-picker",
+      "name": "Unicode Picker",
+      "description_de": "Sonderzeichen per Klick in die Zwischenablage kopieren",
+      "description_en": "Copy special characters to the clipboard with a click",
+      "repo": "https://github.com/NoCoderGHG/unicode-picker",
+      "branch": "main",
+      "entry": "unicode_picker.py",
+      "icon": "font",
+      "available": true
+    },
+    {
+      "id": "docktor",
+      "name": "Docktor",
+      "description_de": "Docker Desktop at home",
+      "description_en": "Docker Desktop at home",
+      "repo": "https://github.com/NoCoderGHG/docktor",
+      "branch": "main",
+      "entry": "docktor.py",
+      "icon": "container",
+      "available": true
+    },
+    {
+      "id": "guitar",
+      "name": "GUITAR",
+      "description_de": "Der einzig wahre Archiver. Nur tar. Nichts anderes.",
+      "description_en": "The one true archiver. Only tar. Nothing else.",
+      "repo": "https://github.com/NoCoderGHG/guitar",
+      "branch": "main",
+      "entry": "guitar.py",
+      "icon": "archive",
+      "available": true,
+      "joke": true
+    }
+  ],
+  "external": [
+    {
+      "id": "exaroton-monitor",
+      "name": "Exaroton Monitor & Control",
+      "description_de": "Exaroton-Server überwachen und steuern",
+      "description_en": "Monitor and control Exaroton servers",
+      "repo": "https://github.com/NoCoderGHG/exaroton-monitor",
+      "branch": "main",
+      "entry": "exaroton_monitor.py",
+      "icon": "server"
+    }
+  ]
+}
