@@ -111,15 +111,15 @@
       "available": false
     },
     {
-      "id": "bash-referenz",
-      "name": "Bash-Referenz-Tool",
-      "description_de": "Nachschlagewerk für Bash-Befehle",
-      "description_en": "Reference tool for bash commands",
-      "repo": "https://github.com/NoCoderGHG/bash-referenz-tool",
+      "id": "shell-referenz",
+      "name": "Shell-Referenz-Tool",
+      "description_de": "Nachschlagewerk für Shell-Befehle (bash, zsh, ksh, fish, dash)",
+      "description_en": "Reference tool for shell commands (bash, zsh, ksh, fish, dash)",
+      "repo": "https://github.com/NoCoderGHG/shell-referenz-tool",
       "branch": "main",
-      "entry": "bash_referenz.py",
+      "entry": "shell_referenz.py",
       "icon": "book",
-      "available": false
+      "available": true
     },
     {
       "id": "systemd-service-manager",
@@ -130,7 +130,7 @@
       "branch": "main",
       "entry": "systemd_service_manager.py",
       "icon": "settings",
-      "available": true
+      "available": false
     },
     {
       "id": "unicode-picker",
