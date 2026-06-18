@@ -1,0 +1,10 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=GTK3 Toolbox
+Comment=Launch and manage GTK3 tools
+Exec=__LAUNCHER_PATH__
+Icon=applications-utilities
+Terminal=false
+Categories=System;Utility;
+Keywords=toolbox;tools;gtk;launcher;
