@@ -129,6 +129,24 @@ info "Installing i18n files"
 mkdir -p "$APP_DST_DIR/i18n"
 cp "$I18N_SRC/"*.json "$APP_DST_DIR/i18n/"
 
+# === Record current commit for self-update check ===
+COMMIT_SHA=$(python3 -c "
+import urllib.request, json
+try:
+    req = urllib.request.Request(
+        'https://api.github.com/repos/NoCoderGHG/gtk3-toolbox/commits/main',
+        headers={'Accept': 'application/vnd.github+json'}
+    )
+    with urllib.request.urlopen(req, timeout=10) as r:
+        print(json.load(r).get('sha', ''))
+except Exception:
+    print('')
+" 2>/dev/null)
+if [[ -n "$COMMIT_SHA" ]]; then
+    echo "$COMMIT_SHA" > "$APP_DST_DIR/.gtk3-toolbox-commit"
+    note "Recorded commit: ${COMMIT_SHA:0:7}"
+fi
+
 # === Install launcher ===
 info "Installing launcher to $LAUNCHER_DST"
 mkdir -p "$(dirname "$LAUNCHER_DST")"

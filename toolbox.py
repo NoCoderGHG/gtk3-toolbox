@@ -45,6 +45,11 @@ DEFAULT_CONFIG = {"lang": "system", "dark_theme": False, "auto_update_check": Fa
 
 VERSION_FILE_NAME = ".gtk3-toolbox-commit"
 
+SELF_REPO = "https://github.com/NoCoderGHG/gtk3-toolbox"
+SELF_BRANCH = "main"
+SELF_VERSION_FILE = Path.home() / ".local" / "share" / "gtk3-toolbox" / VERSION_FILE_NAME
+SELF_FILES = ["toolbox.py", "tools.json"]
+
 
 def load_config():
     CONFIG_DIR.mkdir(parents=True, exist_ok=True)
@@ -185,10 +190,48 @@ def set_installed_commit(tool_id, sha):
         pass
 
 
+def get_self_installed_commit():
+    if SELF_VERSION_FILE.exists():
+        try:
+            return SELF_VERSION_FILE.read_text().strip()
+        except Exception:
+            return None
+    return None
+
+
+def set_self_installed_commit(sha):
+    try:
+        SELF_VERSION_FILE.write_text(sha)
+    except Exception:
+        pass
+
+
+def update_self(callback):
+    """Lädt toolbox.py und tools.json von GitHub und überschreibt die installierten Dateien.
+    callback(ok, err) wird im Main-Thread aufgerufen."""
+    def worker():
+        try:
+            owner, name = repo_owner_name(SELF_REPO)
+            base_url = f"https://raw.githubusercontent.com/{owner}/{name}/{SELF_BRANCH}"
+            dst_dir = Path.home() / ".local" / "share" / "gtk3-toolbox"
+            for filename in SELF_FILES:
+                url = f"{base_url}/{filename}"
+                dst = dst_dir / filename
+                urllib.request.urlretrieve(url, dst)
+            sha = fetch_latest_commit_sha(SELF_REPO, SELF_BRANCH)
+            if sha:
+                set_self_installed_commit(sha)
+            GLib.idle_add(callback, True, "")
+        except Exception as e:
+            GLib.idle_add(callback, False, str(e))
+    threading.Thread(target=worker, daemon=True).start()
+
+
 def check_updates(manifest, callback):
     """Vergleicht installierte Tools mit dem aktuellen Commit auf GitHub.
     callback(results) wird im Main-Thread aufgerufen, results = Liste von
-    (tool, installed_sha, latest_sha)."""
+    (tool, installed_sha, latest_sha). Ein Sondereintrag mit id='__self__'
+    steht für die Toolbox selbst."""
     results = []
     all_tools = list(manifest.get("tools", [])) + list(manifest.get("external", []))
     for tool in all_tools:
@@ -197,8 +240,6 @@ def check_updates(manifest, callback):
             continue
         installed = get_installed_commit(tool["id"])
         if not installed:
-            # Kein gespeicherter Commit (z.B. Installation vor Einfuehrung
-            # des Update-Checkers) -> nicht vergleichbar, ueberspringen.
             continue
         try:
             latest = fetch_latest_commit_sha(repo, tool.get("branch", "main"))
@@ -206,6 +247,23 @@ def check_updates(manifest, callback):
             continue
         if latest and latest != installed:
             results.append((tool, installed, latest))
+
+    # Self-Update-Check
+    self_installed = get_self_installed_commit()
+    if self_installed:
+        try:
+            latest = fetch_latest_commit_sha(SELF_REPO, SELF_BRANCH)
+            if latest and latest != self_installed:
+                self_tool = {
+                    "id": "__self__",
+                    "name": "GTK3 Toolbox (self)",
+                    "repo": SELF_REPO,
+                    "branch": SELF_BRANCH,
+                }
+                results.append((self_tool, self_installed, latest))
+        except Exception:
+            pass
+
     GLib.idle_add(callback, results)
 
 
@@ -545,7 +603,10 @@ class ToolboxLauncher(Gtk.Window):
         selected = dlg.selected_tools() if response == Gtk.ResponseType.OK else []
         dlg.destroy()
 
-        for tool in selected:
+        self_selected = any(tool["id"] == "__self__" for tool in selected)
+        tool_selected = [tool for tool in selected if tool["id"] != "__self__"]
+
+        for tool in tool_selected:
             row = self.rows.get(tool["id"])
             if row:
                 row.set_sensitive(False)
@@ -555,6 +616,16 @@ class ToolboxLauncher(Gtk.Window):
                 args=(tool, lambda tl, ok, err, r=row: self._on_install_done(r, ok, err) if r else None),
                 daemon=True,
             ).start()
+
+        if self_selected:
+            self._status(t(self.strings, "status_installing", name="GTK3 Toolbox"))
+            def on_self_update_done(ok, err):
+                if ok:
+                    # Neustart
+                    os.execv(sys.executable, [sys.executable, __file__])
+                else:
+                    self._status(t(self.strings, "status_install_failed", error=err))
+            update_self(on_self_update_done)
 
     def _on_lang_changed(self, combo):
         new_lang = combo.get_active_id()
