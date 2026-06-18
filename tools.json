@@ -130,7 +130,7 @@
       "branch": "main",
       "entry": "systemd_service_manager.py",
       "icon": "settings",
-      "available": false
+      "available": true
     },
     {
       "id": "unicode-picker",
