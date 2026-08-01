@@ -30,5 +30,7 @@
   "update_now": "Aktualisieren",
   "update_later": "Später",
   "status_checking_updates": "Suche nach Updates...",
-  "status_no_updates": "Keine Updates verfügbar."
+  "status_no_updates": "Keine Updates verfügbar.",
+  "tooltip_about": "Über GTK3 Toolbox",
+  "about_comments": "Lädt GTK3-Tools bei Bedarf von GitHub und hält sie aktuell.\n\nTeil der GTK3-Toolbox (NoCoderGHG)."
 }

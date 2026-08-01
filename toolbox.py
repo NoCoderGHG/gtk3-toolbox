@@ -41,6 +41,8 @@ SUPPORTED_LANGUAGES = {
 
 MANIFEST_FILE = APP_DIR / "tools.json"
 
+APP_VERSION = "1.2"
+
 DEFAULT_CONFIG = {"lang": "system", "dark_theme": False, "auto_update_check": False}
 
 VERSION_FILE_NAME = ".gtk3-toolbox-commit"
@@ -451,6 +453,13 @@ class ToolboxLauncher(Gtk.Window):
         header.props.title = t(self.strings, "app_title")
         self.set_titlebar(header)
 
+        btn_about = Gtk.Button()
+        icon_about = Gio.ThemedIcon(name="help-about-symbolic")
+        btn_about.add(Gtk.Image.new_from_gicon(icon_about, Gtk.IconSize.BUTTON))
+        btn_about.set_tooltip_text(t(self.strings, "tooltip_about"))
+        btn_about.connect("clicked", self._on_about)
+        header.pack_end(btn_about)
+
         btn_theme = Gtk.Button()
         icon = Gio.ThemedIcon(name="weather-clear-night-symbolic")
         btn_theme.add(Gtk.Image.new_from_gicon(icon, Gtk.IconSize.BUTTON))
@@ -569,6 +578,15 @@ class ToolboxLauncher(Gtk.Window):
         else:
             self._status(t(self.strings, "status_install_failed", error=err))
         row.refresh_buttons()
+
+    def _on_about(self, _btn):
+        dlg = Gtk.AboutDialog(transient_for=self, modal=True)
+        dlg.set_program_name(t(self.strings, "app_title"))
+        dlg.set_version(APP_VERSION)
+        dlg.set_comments(t(self.strings, "about_comments"))
+        dlg.set_license_type(Gtk.License.MIT_X11)
+        dlg.run()
+        dlg.destroy()
 
     def _on_theme_toggle(self, _):
         self.cfg["dark_theme"] = not self.cfg.get("dark_theme", False)
