@@ -53,6 +53,8 @@ SELF_REPO = "https://github.com/NoCoderGHG/gtk3-toolbox"
 SELF_BRANCH = "main"
 SELF_VERSION_FILE = Path.home() / ".local" / "share" / "gtk3-toolbox" / VERSION_FILE_NAME
 SELF_FILES = ["toolbox.py", "tools.json"]
+# Sprachdateien: fehlende Uebersetzungen brechen das Update nicht ab.
+SELF_OPTIONAL_FILES = [f"i18n/{code}.json" for code in SUPPORTED_LANGUAGES]
 
 # Ohne Token erlaubt die GitHub-API nur 60 Anfragen pro Stunde und IP.
 PUBLISHER_CONFIG = Path.home() / ".config" / "multi-git-publisher" / "config.json"
@@ -257,22 +259,44 @@ def set_self_installed_commit(sha):
 
 
 def update_self(callback):
-    """Lädt toolbox.py und tools.json von GitHub und überschreibt die installierten Dateien.
-    callback(ok, err) wird im Main-Thread aufgerufen."""
+    """Lädt Code, Manifest und Sprachdateien von GitHub und überschreibt die
+    installierten Dateien. callback(ok, err) wird im Main-Thread aufgerufen.
+    Erst wird alles nach .new geladen, dann umbenannt - ein Abbruch mittendrin
+    hinterlaesst so keine halb aktualisierte Installation."""
     def worker():
+        staged = []
         try:
             owner, name = repo_owner_name(SELF_REPO)
             base_url = f"https://raw.githubusercontent.com/{owner}/{name}/{SELF_BRANCH}"
             dst_dir = Path.home() / ".local" / "share" / "gtk3-toolbox"
-            for filename in SELF_FILES:
-                url = f"{base_url}/{filename}"
+
+            for filename in SELF_FILES + SELF_OPTIONAL_FILES:
+                optional = filename in SELF_OPTIONAL_FILES
                 dst = dst_dir / filename
-                urllib.request.urlretrieve(url, dst)
+                tmp = dst.with_suffix(dst.suffix + ".new")
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                try:
+                    urllib.request.urlretrieve(f"{base_url}/{filename}", tmp)
+                except urllib.error.HTTPError as e:
+                    if optional and e.code == 404:
+                        continue          # Sprache gibt es im Repo nicht
+                    raise
+                staged.append((tmp, dst))
+
+            for tmp, dst in staged:
+                tmp.replace(dst)
+            staged = []
+
             sha = fetch_latest_commit_sha(SELF_REPO, SELF_BRANCH)
             if sha:
                 set_self_installed_commit(sha)
             GLib.idle_add(callback, True, "")
         except Exception as e:
+            for tmp, _dst in staged:
+                try:
+                    tmp.unlink()
+                except OSError:
+                    pass
             GLib.idle_add(callback, False, str(e))
     threading.Thread(target=worker, daemon=True).start()
 
