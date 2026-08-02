@@ -31,6 +31,9 @@
   "update_later": "Later",
   "status_checking_updates": "Checking for updates...",
   "status_no_updates": "No updates available.",
+  "status_rate_limited": "GitHub API rate limit reached. Try again around {time}. Optional: your own token as \"github_token\" in ~/.config/gtk3-toolbox/config.json raises the limit.",
+  "status_rate_limited_no_time": "GitHub API rate limit reached. Please check again later.",
+  "status_update_check_failed": "Update check failed: {error}",
   "tooltip_about": "About GTK3 Toolbox",
   "about_comments": "Downloads GTK3 tools from GitHub on demand and keeps them up to date.\n\nPart of the GTK3 Toolbox (NoCoderGHG)."
 }

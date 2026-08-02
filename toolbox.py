@@ -14,6 +14,8 @@ import shutil
 import subprocess
 import sys
 import threading
+import time
+import urllib.error
 import urllib.request
 import zipfile
 from pathlib import Path
@@ -51,6 +53,42 @@ SELF_REPO = "https://github.com/NoCoderGHG/gtk3-toolbox"
 SELF_BRANCH = "main"
 SELF_VERSION_FILE = Path.home() / ".local" / "share" / "gtk3-toolbox" / VERSION_FILE_NAME
 SELF_FILES = ["toolbox.py", "tools.json"]
+
+# Ohne Token erlaubt die GitHub-API nur 60 Anfragen pro Stunde und IP.
+PUBLISHER_CONFIG = Path.home() / ".config" / "multi-git-publisher" / "config.json"
+
+
+class RateLimitError(Exception):
+    """GitHub-API-Limit erreicht. reset = Unix-Timestamp oder None."""
+
+    def __init__(self, reset=None):
+        super().__init__("GitHub API rate limit exceeded")
+        self.reset = reset
+
+
+def get_github_token():
+    """Token aus der eigenen Config, der Umgebung oder - falls vorhanden -
+    aus der Config des Multi-Git-Publishers."""
+    try:
+        cfg = load_config()
+        token = (cfg.get("github_token") or "").strip()
+        if token:
+            return token
+    except Exception:
+        pass
+    for var in ("GITHUB_TOKEN", "GH_TOKEN"):
+        token = os.environ.get(var, "").strip()
+        if token:
+            return token
+    try:
+        if PUBLISHER_CONFIG.exists():
+            with open(PUBLISHER_CONFIG) as f:
+                token = (json.load(f).get("tokens", {}).get("GitHub") or "").strip()
+            if token:
+                return token
+    except Exception:
+        pass
+    return ""
 
 
 def load_config():
@@ -168,9 +206,19 @@ def repo_owner_name(repo_url):
 def fetch_latest_commit_sha(repo_url, branch):
     owner, name = repo_owner_name(repo_url)
     url = f"https://api.github.com/repos/{owner}/{name}/commits/{branch}"
-    req = urllib.request.Request(url, headers={"Accept": "application/vnd.github+json"})
-    with urllib.request.urlopen(req, timeout=10) as resp:
-        data = json.load(resp)
+    headers = {"Accept": "application/vnd.github+json"}
+    token = get_github_token()
+    if token:
+        headers["Authorization"] = f"Bearer {token}"
+    req = urllib.request.Request(url, headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            data = json.load(resp)
+    except urllib.error.HTTPError as e:
+        if e.code in (403, 429) and e.headers.get("x-ratelimit-remaining") == "0":
+            reset = e.headers.get("x-ratelimit-reset")
+            raise RateLimitError(int(reset) if reset and reset.isdigit() else None)
+        raise
     return data.get("sha")
 
 
@@ -235,8 +283,30 @@ def check_updates(manifest, callback):
     (tool, installed_sha, latest_sha). Ein Sondereintrag mit id='__self__'
     steht für die Toolbox selbst."""
     results = []
+    error = None
+
+    # Self-Update-Check zuerst: bei erschoepftem API-Kontingent faellt sonst
+    # ausgerechnet die Toolbox als Letzte hinten runter.
+    self_installed = get_self_installed_commit()
+    try:
+        latest = fetch_latest_commit_sha(SELF_REPO, SELF_BRANCH)
+        if latest and latest != self_installed:
+            self_tool = {
+                "id": "__self__",
+                "name": "GTK3 Toolbox (self)",
+                "repo": SELF_REPO,
+                "branch": SELF_BRANCH,
+            }
+            results.append((self_tool, self_installed or "?", latest))
+    except RateLimitError as e:
+        error = e
+    except Exception as e:
+        error = e
+
     all_tools = list(manifest.get("tools", [])) + list(manifest.get("external", []))
     for tool in all_tools:
+        if isinstance(error, RateLimitError):
+            break
         repo = tool.get("repo")
         if not repo or not is_installed(tool):
             continue
@@ -245,28 +315,16 @@ def check_updates(manifest, callback):
             continue
         try:
             latest = fetch_latest_commit_sha(repo, tool.get("branch", "main"))
-        except Exception:
+        except RateLimitError as e:
+            error = e
+            break
+        except Exception as e:
+            error = error or e
             continue
         if latest and latest != installed:
             results.append((tool, installed, latest))
 
-    # Self-Update-Check
-    self_installed = get_self_installed_commit()
-    if self_installed:
-        try:
-            latest = fetch_latest_commit_sha(SELF_REPO, SELF_BRANCH)
-            if latest and latest != self_installed:
-                self_tool = {
-                    "id": "__self__",
-                    "name": "GTK3 Toolbox (self)",
-                    "repo": SELF_REPO,
-                    "branch": SELF_BRANCH,
-                }
-                results.append((self_tool, self_installed, latest))
-        except Exception:
-            pass
-
-    GLib.idle_add(callback, results)
+    GLib.idle_add(callback, results, error)
 
 
 def download_and_install(tool, callback):
@@ -605,14 +663,25 @@ class ToolboxLauncher(Gtk.Window):
             self._status(t(self.strings, "status_checking_updates"))
         thread = threading.Thread(
             target=check_updates,
-            args=(self.manifest, lambda results: self._on_update_check_done(results, manual)),
+            args=(self.manifest,
+                  lambda results, error: self._on_update_check_done(results, error, manual)),
             daemon=True,
         )
         thread.start()
 
-    def _on_update_check_done(self, results, manual):
+    def _update_error_text(self, error):
+        if isinstance(error, RateLimitError):
+            if error.reset:
+                clock = time.strftime("%H:%M", time.localtime(error.reset))
+                return t(self.strings, "status_rate_limited", time=clock)
+            return t(self.strings, "status_rate_limited_no_time")
+        return t(self.strings, "status_update_check_failed", error=str(error))
+
+    def _on_update_check_done(self, results, error, manual):
+        if error is not None:
+            self._status(self._update_error_text(error))
         if not results:
-            if manual:
+            if manual and error is None:
                 self._status(t(self.strings, "status_no_updates"))
             return
 

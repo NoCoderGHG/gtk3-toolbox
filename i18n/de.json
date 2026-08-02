@@ -31,6 +31,9 @@
   "update_later": "Später",
   "status_checking_updates": "Suche nach Updates...",
   "status_no_updates": "Keine Updates verfügbar.",
+  "status_rate_limited": "GitHub-API-Limit erreicht. Nächster Versuch ab ca. {time}. Optional: eigenes Token als \"github_token\" in ~/.config/gtk3-toolbox/config.json hebt das Limit an.",
+  "status_rate_limited_no_time": "GitHub-API-Limit erreicht. Bitte später erneut prüfen.",
+  "status_update_check_failed": "Update-Prüfung fehlgeschlagen: {error}",
   "tooltip_about": "Über GTK3 Toolbox",
   "about_comments": "Lädt GTK3-Tools bei Bedarf von GitHub und hält sie aktuell.\n\nTeil der GTK3-Toolbox (NoCoderGHG)."
 }
